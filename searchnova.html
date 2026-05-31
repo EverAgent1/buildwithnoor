@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SearchNova - AI Search Strategy</title>
+    
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP & ScrollTrigger (CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        zinc: {
+                            50: '#fafafa',
+                            100: '#f4f4f5',
+                            200: '#e4e4e7',
+                            300: '#d4d4d8',
+                            400: '#a1a1aa',
+                            500: '#71717a',
+                            600: '#52525b',
+                            700: '#3f3f46',
+                            800: '#27272a',
+                            900: '#18181b',
+                            950: '#0a0a0a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #fafafa;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Nav Blur */
+        .glass-nav {
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Buttons & Cards */
+        .btn-primary {
+            background: white;
+            color: black;
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: #e4e4e7;
+            box-shadow: 0 0 25px rgba(255,255,255,0.2);
+            transform: scale(0.98);
+        }
+
+        .btn-accent {
+            background: #4f46e5;
+            color: white;
+            box-shadow: 0 0 20px rgba(79,70,229,0.3);
+            transition: all 0.3s ease;
+        }
+        .btn-accent:hover {
+            background: #6366f1;
+            box-shadow: 0 0 30px rgba(79,70,229,0.5);
+            transform: scale(0.98);
+        }
+
+        .card-hover {
+            transition: all 0.5s ease;
+        }
+        .card-hover:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-4px);
+        }
+
+        /* Utilities */
+        .gsap-reveal { visibility: hidden; }
+        .view-section { display: none; opacity: 0; }
+        .view-section.active { display: block; opacity: 1; }
+
+        /* Custom Scrollbar for Drawer */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+    </style>
+</head>
+<body class="selection:bg-indigo-500/30">
+
+    <!-- Navigation -->
+    <header id="navbar" class="fixed top-0 inset-x-0 z-50 transition-all duration-300 py-6 border-b border-transparent bg-transparent">
+        <div class="max-w-7xl mx-auto px-6 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-2 cursor-pointer group" onclick="switchTab('home')">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-cyan-400 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.5)] transition-transform group-hover:scale-105">
+                    <i data-lucide="search" class="w-4 h-4 text-white"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white group-hover:text-indigo-400 transition-colors">SearchNova</span>
+            </div>
+
+            <!-- Desktop Nav -->
+            <nav class="hidden md:flex items-center gap-1 bg-[#111111]/50 border border-white/5 rounded-full px-2 py-1 backdrop-blur-sm">
+                <button class="nav-link px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white/10 text-white" data-target="home">Home</button>
+                <button class="nav-link px-4 py-2 rounded-full text-sm font-medium transition-colors text-zinc-400 hover:text-white hover:bg-white/5" data-target="services">Services</button>
+                <button class="nav-link px-4 py-2 rounded-full text-sm font-medium transition-colors text-zinc-400 hover:text-white hover:bg-white/5" data-target="casestudies">Case Studies</button>
+                <button class="nav-link px-4 py-2 rounded-full text-sm font-medium transition-colors text-zinc-400 hover:text-white hover:bg-white/5" data-target="blog">Resources</button>
+                <button class="nav-link px-4 py-2 rounded-full text-sm font-medium transition-colors text-zinc-400 hover:text-white hover:bg-white/5" data-target="about">Company</button>
+            </nav>
+
+            <!-- Actions -->
+            <div class="hidden md:flex items-center gap-4">
+                <button class="text-sm font-medium text-zinc-300 hover:text-white transition-colors cursor-pointer">Log in</button>
+                <button onclick="toggleModal('booking-modal')" class="btn-primary inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium cursor-pointer">
+                    Book a Call
+                </button>
+            </div>
+
+            <!-- Mobile Toggle -->
+            <button class="md:hidden text-zinc-400 hover:text-white cursor-pointer" onclick="toggleMobileMenu()">
+                <i data-lucide="menu" id="menu-icon"></i>
+            </button>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden absolute top-full inset-x-0 bg-[#0A0A0A] border-b border-white/5 py-4 px-6 flex-col gap-4">
+            <button class="nav-link-mobile text-left text-lg font-medium py-2 text-indigo-400" data-target="home">Home</button>
+            <button class="nav-link-mobile text-left text-lg font-medium py-2 text-zinc-400" data-target="services">Services</button>
+            <button class="nav-link-mobile text-left text-lg font-medium py-2 text-zinc-400" data-target="casestudies">Case Studies</button>
+            <button class="nav-link-mobile text-left text-lg font-medium py-2 text-zinc-400" data-target="blog">Resources</button>
+            <button class="nav-link-mobile text-left text-lg font-medium py-2 text-zinc-400" data-target="about">Company</button>
+            <div class="pt-4 border-t border-white/5 flex flex-col gap-4">
+                <button onclick="toggleMobileMenu(); toggleModal('booking-modal')" class="w-full inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-medium bg-[#111111] text-white border border-white/10 hover:border-white/20">Log in</button>
+                <button onclick="toggleMobileMenu(); toggleModal('booking-modal')" class="btn-primary w-full px-6 py-3 rounded-full text-sm font-medium">Book a Call</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="min-h-screen">
+        
+        <!-- ==================== HOME VIEW ==================== -->
+        <div id="view-home" class="view-section active animate-in fade-in duration-700">
+            <!-- Hero -->
+            <section class="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
+                <div class="absolute top-0 inset-x-0 h-full flex justify-center pointer-events-none">
+                    <div class="w-full max-w-[1000px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] -translate-y-1/2"></div>
+                </div>
+                
+                <div class="max-w-7xl mx-auto px-6 relative z-10 text-center">
+                    <h1 class="hero-stagger text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-white leading-[1.1] mb-8 max-w-5xl mx-auto">
+                        Own the Future of <br class="hidden md:block" />
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-cyan-400">AI Search</span>
+                    </h1>
+                    
+                    <p class="hero-stagger text-lg md:text-xl text-zinc-400 leading-relaxed max-w-2xl mx-auto mb-10">
+                        We help SaaS companies rank inside ChatGPT, Google AI Overviews, and next-generation search experiences. Stop optimizing for the past.
+                    </p>
+                    
+                    <div class="hero-stagger flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <button onclick="toggleModal('booking-modal')" class="btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-medium">
+                            Book a Strategy Call <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="switchTab('casestudies')" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full text-base font-medium bg-[#111111] text-white border border-white/10 hover:border-white/20 hover:bg-[#1a1a1a] transition-all duration-300">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4"></i> View Case Studies
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Logos -->
+            <section class="py-12 border-y border-white/5 bg-[#111111]/30 gsap-reveal">
+                <div class="max-w-7xl mx-auto px-6">
+                    <p class="text-center text-sm font-medium text-zinc-500 uppercase tracking-widest mb-8">Trusted by fastest-growing SaaS teams</p>
+                    <div class="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+                        <div class="text-lg font-semibold text-zinc-400 flex items-center gap-2 cursor-pointer hover:text-white transition-colors"><div class="w-6 h-6 rounded bg-zinc-800"></div> Acme Corp</div>
+                        <div class="text-lg font-semibold text-zinc-400 flex items-center gap-2 cursor-pointer hover:text-white transition-colors"><div class="w-6 h-6 rounded bg-zinc-800"></div> GlobalBank</div>
+                        <div class="text-lg font-semibold text-zinc-400 flex items-center gap-2 cursor-pointer hover:text-white transition-colors"><div class="w-6 h-6 rounded bg-zinc-800"></div> TechFlow</div>
+                        <div class="text-lg font-semibold text-zinc-400 flex items-center gap-2 cursor-pointer hover:text-white transition-colors"><div class="w-6 h-6 rounded bg-zinc-800"></div> NovaSync</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Services Quick View -->
+            <section class="py-24 md:py-32 relative">
+                <div class="max-w-7xl mx-auto px-6">
+                    <div class="mb-16 md:mb-24 text-center mx-auto max-w-3xl gsap-reveal">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium tracking-wide uppercase mb-6 mx-auto">
+                            <i data-lucide="sparkles" class="w-3 h-3"></i> Our Expertise
+                        </div>
+                        <h2 class="text-3xl md:text-5xl font-bold tracking-tighter text-white mb-6">Beyond Traditional SEO</h2>
+                        <p class="text-lg text-zinc-400 leading-relaxed">The landscape has shifted. We engineer your presence for the new era of generative search and AI-driven discovery.</p>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <!-- Card 1 -->
+                        <div onclick="switchTab('services')" class="bg-[#111111] border border-white/5 rounded-2xl p-8 card-hover group relative overflow-hidden cursor-pointer gsap-reveal">
+                            <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div class="relative z-10">
+                                <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-6 text-indigo-400">
+                                    <i data-lucide="sparkles" class="w-6 h-6"></i>
+                                </div>
+                                <h3 class="text-xl font-semibold text-white mb-3">AI Search Optimization</h3>
+                                <p class="text-zinc-400 mb-6 leading-relaxed">Ensure your SaaS is the recommended solution in ChatGPT, Claude, and Perplexity by structuring data for LLMs.</p>
+                                <span class="inline-flex items-center text-sm font-medium text-white group-hover:text-indigo-400 transition-colors">
+                                    Explore capability <i data-lucide="arrow-right" class="w-4 h-4 ml-1 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Card 2 -->
+                        <div onclick="switchTab('services')" class="bg-[#111111] border border-white/5 rounded-2xl p-8 card-hover group relative overflow-hidden cursor-pointer gsap-reveal" style="transition-delay: 100ms;">
+                            <div class="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div class="relative z-10">
+                                <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 text-cyan-400">
+                                    <i data-lucide="globe-2" class="w-6 h-6"></i>
+                                </div>
+                                <h3 class="text-xl font-semibold text-white mb-3">GEO & AEO Strategy</h3>
+                                <p class="text-zinc-400 mb-6 leading-relaxed">Dominate Google's Generative Experience (SGE) and Answer Engine Optimization to capture zero-click searches.</p>
+                                <span class="inline-flex items-center text-sm font-medium text-white group-hover:text-cyan-400 transition-colors">
+                                    Explore capability <i data-lucide="arrow-right" class="w-4 h-4 ml-1 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Card 3 -->
+                        <div onclick="switchTab('services')" class="bg-[#111111] border border-white/5 rounded-2xl p-8 card-hover group relative overflow-hidden cursor-pointer gsap-reveal" style="transition-delay: 200ms;">
+                            <div class="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div class="relative z-10">
+                                <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-6 text-purple-400">
+                                    <i data-lucide="trending-up" class="w-6 h-6"></i>
+                                </div>
+                                <h3 class="text-xl font-semibold text-white mb-3">SaaS SEO Growth</h3>
+                                <p class="text-zinc-400 mb-6 leading-relaxed">High-intent programmatic SEO and technical architecture designed specifically to lower CAC for software companies.</p>
+                                <span class="inline-flex items-center text-sm font-medium text-white group-hover:text-purple-400 transition-colors">
+                                    Explore capability <i data-lucide="arrow-right" class="w-4 h-4 ml-1 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Metrics -->
+            <section class="py-20 border-y border-white/5 bg-[#111111]/50 relative overflow-hidden gsap-reveal">
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/10 via-[#111111]/0 to-transparent"></div>
+                <div class="max-w-7xl mx-auto px-6 relative z-10">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4 divide-x divide-white/5">
+                        <div class="text-center px-4 cursor-pointer hover:scale-105 transition-transform">
+                            <div class="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tighter">+320%</div>
+                            <div class="text-sm font-medium text-zinc-400 uppercase tracking-wide">Avg. Traffic Growth</div>
+                        </div>
+                        <div class="text-center px-4 cursor-pointer hover:scale-105 transition-transform">
+                            <div class="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tighter">+90%</div>
+                            <div class="text-sm font-medium text-zinc-400 uppercase tracking-wide">AI Visibility</div>
+                        </div>
+                        <div class="text-center px-4 cursor-pointer hover:scale-105 transition-transform">
+                            <div class="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tighter">+210%</div>
+                            <div class="text-sm font-medium text-zinc-400 uppercase tracking-wide">Impression Surge</div>
+                        </div>
+                        <div class="text-center px-4 cursor-pointer hover:scale-105 transition-transform">
+                            <div class="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tighter">98%</div>
+                            <div class="text-sm font-medium text-zinc-400 uppercase tracking-wide">Client Retention</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CTA Section -->
+            <section class="py-24 md:py-32 relative overflow-hidden gsap-reveal">
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="w-[800px] h-[400px] bg-gradient-to-r from-indigo-600/30 to-cyan-400/30 blur-[100px] rounded-full"></div>
+                </div>
+                <div class="max-w-4xl mx-auto px-6 relative z-10 text-center">
+                    <h2 class="text-4xl md:text-6xl font-bold tracking-tighter text-white mb-6">Ready to dominate AI Search?</h2>
+                    <p class="text-xl text-zinc-400 mb-10 max-w-2xl mx-auto">Stop losing market share to competitors who are optimizing for tomorrow. Let's build your AI visibility strategy.</p>
+                    <button onclick="toggleModal('booking-modal')" class="btn-accent inline-flex items-center justify-center px-10 py-4 rounded-full text-lg font-medium">
+                        Schedule Your Audit
+                    </button>
+                </div>
+            </section>
+        </div>
+
+
+        <!-- ==================== SERVICES VIEW ==================== -->
+        <div id="view-services" class="view-section pt-32 pb-20">
+            <div class="max-w-7xl mx-auto px-6">
+                <!-- Services Pill Switcher -->
+                <div class="flex flex-wrap items-center justify-center gap-2 bg-[#111111] border border-white/5 rounded-full p-2 max-w-2xl mx-auto mb-16">
+                    <button onclick="updateServiceData('ai')" id="pill-ai" class="flex-1 min-w-[150px] px-6 py-3 rounded-full text-xs md:text-sm font-semibold transition-all cursor-pointer bg-indigo-600 text-white">AI Search Opt</button>
+                    <button onclick="updateServiceData('geo')" id="pill-geo" class="flex-1 min-w-[150px] px-6 py-3 rounded-full text-xs md:text-sm font-semibold transition-all cursor-pointer text-zinc-400 hover:text-white hover:bg-white/5">GEO & AEO Strategy</button>
+                    <button onclick="updateServiceData('saas')" id="pill-saas" class="flex-1 min-w-[150px] px-6 py-3 rounded-full text-xs md:text-sm font-semibold transition-all cursor-pointer text-zinc-400 hover:text-white hover:bg-white/5">SaaS Growth</button>
+                </div>
+
+                <!-- Dynamic Content Area -->
+                <div id="service-content" class="gsap-reveal-service animate-in fade-in duration-500">
+                    <div class="mb-16">
+                        <div id="srv-badge" class="text-indigo-400 font-semibold tracking-wide uppercase text-sm mb-4">Generative Platform Growth</div>
+                        <h1 id="srv-title" class="text-5xl md:text-7xl font-bold tracking-tighter text-white mb-6">AI Search Optimization</h1>
+                        <p id="srv-desc" class="text-xl text-zinc-400 max-w-2xl leading-relaxed">Structure your SaaS data to be the primary recommendation in LLMs like ChatGPT, Claude, and Perplexity.</p>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-16 mb-24">
+                        <div>
+                            <h3 class="text-2xl font-semibold text-white mb-6">Why It Matters</h3>
+                            <p class="text-zinc-400 leading-relaxed mb-6">Conventional SEO directories are decaying. Generative interfaces summarize recommendations directly for users, skipping intermediate lists. If you aren't positioned correctly, your solution won't surface.</p>
+                            <ul id="srv-points" class="space-y-4">
+                                <li class="flex items-center gap-3 text-zinc-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-indigo-400"></i> Semantic data structuring</li>
+                                <li class="flex items-center gap-3 text-zinc-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-indigo-400"></i> Entity relationship building</li>
+                                <li class="flex items-center gap-3 text-zinc-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-indigo-400"></i> LLM prompt injection strategies</li>
+                                <li class="flex items-center gap-3 text-zinc-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-indigo-400"></i> Conversational keyword mapping</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[#111111] border border-white/5 rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden">
+                            <div class="absolute top-0 right-0 p-8 opacity-10">
+                                <i data-lucide="sparkles" class="w-32 h-32 text-indigo-400"></i>
+                            </div>
+                            <div id="srv-metric" class="text-5xl font-extrabold text-white mb-2 relative z-10">85%</div>
+                            <div id="srv-metric-desc" class="text-zinc-400 text-lg relative z-10">Of B2B buyers use AI for initial software research.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQs -->
+                <div class="mb-24 gsap-reveal">
+                    <div class="mb-12">
+                        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Frequently Asked Questions</h2>
+                        <p class="text-zinc-400">Everything you need to know about optimization structures.</p>
+                    </div>
+                    <div class="space-y-4 max-w-4xl" id="faq-container">
+                        <!-- FAQs generated by JS -->
+                    </div>
+                </div>
+
+                <div class="p-8 md:p-16 rounded-3xl bg-gradient-to-r from-indigo-950/20 to-cyan-950/20 border border-white/5 text-center gsap-reveal">
+                    <h3 class="text-2xl md:text-3xl font-bold text-white mb-4">Request a Custom Roadmap</h3>
+                    <p class="text-zinc-400 max-w-xl mx-auto mb-8 text-sm md:text-base">We'll review your existing site content and layout recommendations live during a 30-minute workspace session.</p>
+                    <button onclick="toggleModal('booking-modal')" class="btn-accent px-8 py-3 rounded-full text-sm font-medium">Schedule Blueprint Call</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== CASE STUDIES VIEW ==================== -->
+        <div id="view-casestudies" class="view-section pt-32 pb-20">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="mb-16 md:mb-24 max-w-3xl gsap-reveal">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium tracking-wide uppercase mb-6">
+                        <i data-lucide="sparkles" class="w-3 h-3"></i> Proven Results
+                    </div>
+                    <h2 class="text-3xl md:text-5xl font-bold tracking-tighter text-white mb-6">Engineering Growth</h2>
+                    <p class="text-lg text-zinc-400 leading-relaxed">See how we've helped leading SaaS companies secure their positions in the new search landscape.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Study 1 -->
+                    <div onclick="openCaseStudy('FinTech Platform', '+320%', 'Non-Brand Traffic Growth')" class="bg-[#111111] border border-white/5 rounded-2xl overflow-hidden group cursor-pointer hover:border-indigo-500/30 transition-all duration-300 gsap-reveal">
+                        <div class="h-48 bg-gradient-to-br from-indigo-600/20 to-transparent relative p-8 flex flex-col justify-end border-b border-white/5">
+                            <div class="absolute top-4 right-4 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white">Case Study</div>
+                            <div class="text-4xl font-extrabold text-white tracking-tighter mb-1">+320%</div>
+                            <div class="text-sm text-zinc-300 font-semibold">Non-Brand Traffic Growth</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="text-2xl font-bold text-white mb-3 group-hover:text-indigo-400 transition-colors">FinTech Platform</h3>
+                            <p class="text-zinc-400 mb-6 text-sm">How we restructured their entire knowledge base to dominate Zero-Click searches and AI Overviews.</p>
+                            <span class="text-sm font-medium text-white flex items-center group-hover:translate-x-2 transition-transform">Read full story <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i></span>
+                        </div>
+                    </div>
+                    <!-- Study 2 -->
+                    <div onclick="openCaseStudy('DevOps Tooling', '1st', 'Rank in ChatGPT Queries')" class="bg-[#111111] border border-white/5 rounded-2xl overflow-hidden group cursor-pointer hover:border-cyan-500/30 transition-all duration-300 gsap-reveal" style="transition-delay: 100ms;">
+                        <div class="h-48 bg-gradient-to-br from-cyan-600/20 to-transparent relative p-8 flex flex-col justify-end border-b border-white/5">
+                            <div class="absolute top-4 right-4 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white">Case Study</div>
+                            <div class="text-4xl font-extrabold text-white tracking-tighter mb-1">1st</div>
+                            <div class="text-sm text-zinc-300 font-semibold">Rank in ChatGPT Queries</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="text-2xl font-bold text-white mb-3 group-hover:text-cyan-400 transition-colors">DevOps Tooling</h3>
+                            <p class="text-zinc-400 mb-6 text-sm">How we restructured their entire knowledge base to dominate Zero-Click searches and AI Overviews.</p>
+                            <span class="text-sm font-medium text-white flex items-center group-hover:translate-x-2 transition-transform">Read full story <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i></span>
+                        </div>
+                    </div>
+                    <!-- Study 3 -->
+                    <div onclick="openCaseStudy('HR SaaS Network', '+150%', 'Demo Conversions')" class="bg-[#111111] border border-white/5 rounded-2xl overflow-hidden group cursor-pointer hover:border-purple-500/30 transition-all duration-300 gsap-reveal">
+                        <div class="h-48 bg-gradient-to-br from-purple-600/20 to-transparent relative p-8 flex flex-col justify-end border-b border-white/5">
+                            <div class="absolute top-4 right-4 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white">Case Study</div>
+                            <div class="text-4xl font-extrabold text-white tracking-tighter mb-1">+150%</div>
+                            <div class="text-sm text-zinc-300 font-semibold">Demo Request Conversions</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="text-2xl font-bold text-white mb-3 group-hover:text-purple-400 transition-colors">HR SaaS Network</h3>
+                            <p class="text-zinc-400 mb-6 text-sm">How we restructured their entire knowledge base to dominate Zero-Click searches and AI Overviews.</p>
+                            <span class="text-sm font-medium text-white flex items-center group-hover:translate-x-2 transition-transform">Read full story <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i></span>
+                        </div>
+                    </div>
+                    <!-- Study 4 -->
+                    <div onclick="openCaseStudy('CRM Enterprise', '4x', 'Semantic Trust')" class="bg-[#111111] border border-white/5 rounded-2xl overflow-hidden group cursor-pointer hover:border-emerald-500/30 transition-all duration-300 gsap-reveal" style="transition-delay: 100ms;">
+                        <div class="h-48 bg-gradient-to-br from-emerald-600/20 to-transparent relative p-8 flex flex-col justify-end border-b border-white/5">
+                            <div class="absolute top-4 right-4 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white">Case Study</div>
+                            <div class="text-4xl font-extrabold text-white tracking-tighter mb-1">4x</div>
+                            <div class="text-sm text-zinc-300 font-semibold">Increase in Semantic Trust</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="text-2xl font-bold text-white mb-3 group-hover:text-emerald-400 transition-colors">CRM Enterprise Startup</h3>
+                            <p class="text-zinc-400 mb-6 text-sm">How we restructured their entire knowledge base to dominate Zero-Click searches and AI Overviews.</p>
+                            <span class="text-sm font-medium text-white flex items-center group-hover:translate-x-2 transition-transform">Read full story <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BLOG VIEW ==================== -->
+        <div id="view-blog" class="view-section pt-32 pb-20">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="mb-12 max-w-3xl gsap-reveal">
+                    <h2 class="text-3xl md:text-5xl font-bold tracking-tighter text-white mb-6">Resources & Insights</h2>
+                    <p class="text-lg text-zinc-400 leading-relaxed">The latest strategies for AI Search, GEO, and SaaS growth.</p>
+                </div>
+
+                <div class="flex items-center gap-2 mb-12 overflow-x-auto pb-4 border-b border-white/5 hide-scroll">
+                    <span class="text-xs text-zinc-500 font-semibold uppercase tracking-wider mr-4 flex items-center gap-1">
+                        <i data-lucide="filter" class="w-3.5 h-3.5"></i> Filter:
+                    </span>
+                    <button class="px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors bg-white text-black">All Articles</button>
+                    <button class="px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10">Strategy</button>
+                    <button class="px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10">AI Search</button>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div onclick="openBlog('The Ultimate Guide to Answer Engine Optimization', 'Strategy')" class="bg-[#111111] border border-white/5 rounded-2xl p-8 flex flex-col h-full cursor-pointer hover:border-indigo-500/30 transition-colors group gsap-reveal">
+                        <div class="text-xs font-bold text-indigo-400 mb-4 uppercase tracking-wider">Strategy</div>
+                        <h3 class="text-xl font-bold text-white mb-4 leading-snug group-hover:text-indigo-300 transition-colors">The Ultimate Guide to Answer Engine Optimization (AEO)</h3>
+                        <div class="mt-auto pt-6 flex items-center justify-between text-xs text-zinc-500">
+                            <span>Oct 11, 2024</span><span>5 min read</span>
+                        </div>
+                    </div>
+                    <div onclick="openBlog('How ChatGPT Ranks Software Recommendations in 2024', 'AI Search')" class="bg-[#111111] border border-white/5 rounded-2xl p-8 flex flex-col h-full cursor-pointer hover:border-indigo-500/30 transition-colors group gsap-reveal">
+                        <div class="text-xs font-bold text-indigo-400 mb-4 uppercase tracking-wider">AI Search</div>
+                        <h3 class="text-xl font-bold text-white mb-4 leading-snug group-hover:text-indigo-300 transition-colors">How ChatGPT Ranks Software Recommendations in 2024</h3>
+                        <div class="mt-auto pt-6 flex items-center justify-between text-xs text-zinc-500">
+                            <span>Oct 12, 2024</span><span>8 min read</span>
+                        </div>
+                    </div>
+                    <div onclick="openBlog('Structuring SaaS Landing Pages for Google SGE', 'Technical')" class="bg-[#111111] border border-white/5 rounded-2xl p-8 flex flex-col h-full cursor-pointer hover:border-indigo-500/30 transition-colors group gsap-reveal">
+                        <div class="text-xs font-bold text-indigo-400 mb-4 uppercase tracking-wider">Technical</div>
+                        <h3 class="text-xl font-bold text-white mb-4 leading-snug group-hover:text-indigo-300 transition-colors">Structuring SaaS Landing Pages for Google SGE</h3>
+                        <div class="mt-auto pt-6 flex items-center justify-between text-xs text-zinc-500">
+                            <span>Oct 13, 2024</span><span>6 min read</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ABOUT VIEW ==================== -->
+        <div id="view-about" class="view-section pt-32 pb-20">
+            <div class="max-w-7xl mx-auto px-6">
+                <!-- Hero Header -->
+                <div class="mb-20 text-center max-w-3xl mx-auto gsap-reveal">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold tracking-wide uppercase mb-6">
+                        <i data-lucide="sparkles" class="w-3 h-3"></i> Our Mission
+                    </div>
+                    <h1 class="text-5xl md:text-7xl font-bold tracking-tighter text-white mb-6">Future-Proofing SaaS Visibility</h1>
+                    <p class="text-xl text-zinc-400 leading-relaxed">Traditional search is evolving. We exist to ensure that when LLMs and conversational discovery platforms crawl the web, your SaaS is recognized as the ultimate authority.</p>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8 mb-32">
+                    <div class="bg-[#111111] border border-white/5 rounded-2xl p-8 card-hover gsap-reveal">
+                        <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-6"><i data-lucide="layers" class="w-6 h-6 text-indigo-400"></i></div>
+                        <h3 class="text-xl font-bold text-white mb-3">Entity-First Strategy</h3>
+                        <p class="text-zinc-400 leading-relaxed text-sm">We don't optimize for strings; we optimize for entities. Our methodology ensures search systems map and link your SaaS to core niche definitions.</p>
+                    </div>
+                    <div class="bg-[#111111] border border-white/5 rounded-2xl p-8 card-hover gsap-reveal">
+                        <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-6"><i data-lucide="zap" class="w-6 h-6 text-cyan-400"></i></div>
+                        <h3 class="text-xl font-bold text-white mb-3">Continuous Adaptation</h3>
+                        <p class="text-zinc-400 leading-relaxed text-sm">AI ecosystems evolve hourly. Our active research framework tracks response fluctuations to adjust structures before traffic drops occur.</p>
+                    </div>
+                    <div class="bg-[#111111] border border-white/5 rounded-2xl p-8 card-hover gsap-reveal">
+                        <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-6"><i data-lucide="bar-chart-3" class="w-6 h-6 text-purple-400"></i></div>
+                        <h3 class="text-xl font-bold text-white mb-3">Radical Performance</h3>
+                        <p class="text-zinc-400 leading-relaxed text-sm">Zero reliance on legacy metrics. We measure real-time LLM recommendations, Google Generative Overview citations, and direct conversions.</p>
+                    </div>
+                </div>
+
+                <div class="bg-[#111111]/30 border border-white/5 rounded-3xl p-8 md:p-16 relative overflow-hidden gsap-reveal">
+                    <div class="absolute top-0 right-0 p-8 opacity-5"><i data-lucide="globe-2" class="w-64 h-64 text-indigo-500"></i></div>
+                    <div class="max-w-2xl relative z-10">
+                        <h3 class="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">Our Operating Philosophy</h3>
+                        <p class="text-zinc-400 leading-relaxed mb-6">We believe that premium visibility is achieved by providing objective, high-integrity authority. Rather than trying to hack AI models, we design metadata systems that allow foundational architectures to easily select your software.</p>
+                        <div class="flex flex-col sm:flex-row gap-4 mt-8">
+                            <button onclick="toggleModal('research-modal')" class="btn-primary px-6 py-3 rounded-full text-sm font-medium">Read Research Papers</button>
+                            <button onclick="togglePodcast()" class="btn-primary bg-[#111111] text-white border border-white/10 hover:border-white/20 hover:bg-[#1a1a1a] px-6 py-3 rounded-full text-sm font-medium">Join Weekly Podcast</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 bg-[#0A0A0A] pt-20 pb-10 mt-auto">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
+                <div class="col-span-2">
+                    <div class="flex items-center gap-2 mb-6 cursor-pointer" onclick="switchTab('home')">
+                        <div class="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center">
+                            <i data-lucide="search" class="w-3 h-3 text-white"></i>
+                        </div>
+                        <span class="text-lg font-bold text-white">SearchNova</span>
+                    </div>
+                    <p class="text-zinc-400 max-w-sm mb-6 text-sm">
+                        The premium AI SEO agency for SaaS companies. We engineer your brand's presence for the future of search.
+                    </p>
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 rounded-full bg-[#111111] border border-white/5 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors text-zinc-400 hover:text-white">𝕏</div>
+                        <div class="w-10 h-10 rounded-full bg-[#111111] border border-white/5 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors text-zinc-400 hover:text-white">in</div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold text-sm mb-6">Services</h4>
+                    <ul class="space-y-4 text-sm text-zinc-400">
+                        <li class="hover:text-white cursor-pointer transition-colors" onclick="switchTab('services')">AI Search Optimization</li>
+                        <li class="hover:text-white cursor-pointer transition-colors" onclick="switchTab('services')">GEO Strategy</li>
+                        <li class="hover:text-white cursor-pointer transition-colors" onclick="switchTab('services')">Technical SEO</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold text-sm mb-6">Company</h4>
+                    <ul class="space-y-4 text-sm text-zinc-400">
+                        <li class="hover:text-white cursor-pointer transition-colors" onclick="switchTab('about')">About Us</li>
+                        <li class="hover:text-white cursor-pointer transition-colors" onclick="switchTab('casestudies')">Case Studies</li>
+                        <li class="hover:text-white cursor-pointer transition-colors" onclick="toggleModal('booking-modal')">Contact</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-zinc-500">
+                <p>© 2026 SearchNova. All rights reserved.</p>
+                <div class="flex gap-6">
+                    <span class="hover:text-white cursor-pointer">Privacy Policy</span>
+                    <span class="hover:text-white cursor-pointer">Terms of Service</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== MODALS & OVERLAYS ==================== -->
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-[#0A0A0A]/95 backdrop-blur-md" onclick="toggleModal('booking-modal')"></div>
+        <div class="relative w-full max-w-2xl bg-[#111111] border border-white/10 rounded-3xl p-6 md:p-10 shadow-2xl transform transition-transform scale-95 opacity-0 overflow-y-auto max-h-[90vh] modal-content">
+            <button onclick="toggleModal('booking-modal')" class="absolute top-6 right-6 text-zinc-400 hover:text-white transition-colors cursor-pointer"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div id="booking-form-area">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-6">
+                    <i data-lucide="calendar" class="w-3 h-3"></i> 1:1 AI Search Strategy Session
+                </div>
+                <h3 class="text-3xl font-bold tracking-tight text-white mb-2">Book Your Strategy Audit</h3>
+                <p class="text-zinc-400 mb-8 text-sm">Select a date and time to reserve your live search analysis with our lead LLM architect.</p>
+                
+                <form onsubmit="handleBookingSubmit(event)" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <input type="text" required placeholder="Full Name" class="w-full bg-[#18181B] border border-white/5 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 outline-none transition-all" />
+                        <input type="email" required placeholder="Work Email" class="w-full bg-[#18181B] border border-white/5 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 outline-none transition-all" />
+                    </div>
+                    <input type="url" placeholder="Company Website URL" class="w-full bg-[#18181B] border border-white/5 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 outline-none transition-all" />
+                    <button type="submit" class="btn-accent w-full inline-flex items-center justify-center px-6 py-4 rounded-xl text-sm font-medium">Reserve Consultation</button>
+                </form>
+            </div>
+            <div id="booking-success" class="hidden text-center py-12">
+                <div class="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-6 text-emerald-400">
+                    <i data-lucide="check" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-3xl font-bold tracking-tight text-white mb-2">You are Confirmed!</h3>
+                <p class="text-zinc-400 max-w-md mx-auto mb-8 text-sm">We have locked in your strategy session. A calendar invite has been sent to your email.</p>
+                <button onclick="toggleModal('booking-modal')" class="btn-primary bg-[#111111] text-white border border-white/10 hover:border-white/20 px-6 py-3 rounded-full text-sm">Close Window</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Case Study Side Drawer -->
+    <div id="casestudy-modal" class="fixed inset-0 z-[100] hidden items-center justify-end">
+        <div class="absolute inset-0 bg-[#0A0A0A]/90 backdrop-blur-md" onclick="toggleModal('casestudy-modal')"></div>
+        <div class="relative w-full max-w-2xl h-full bg-[#0E0E0E] border-l border-white/10 p-6 md:p-12 overflow-y-auto shadow-2xl z-10 transform translate-x-full transition-transform modal-content-drawer">
+            <button onclick="toggleModal('casestudy-modal')" class="absolute top-8 right-8 text-zinc-400 hover:text-white cursor-pointer"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div class="mb-6">
+                <span class="text-indigo-400 text-xs font-semibold uppercase tracking-wider">Engineering Growth</span>
+                <h2 id="cs-title" class="text-4xl font-extrabold text-white mt-2 tracking-tight">Strategy</h2>
+            </div>
+            <div class="grid grid-cols-2 gap-4 my-8">
+                <div class="bg-[#141414] border border-white/5 rounded-2xl p-6">
+                    <span class="text-zinc-500 text-xs font-medium uppercase tracking-wider block mb-2">Outcome</span>
+                    <div id="cs-metric" class="text-3xl md:text-4xl font-bold text-white tracking-tighter">Value</div>
+                    <p id="cs-label" class="text-zinc-400 text-xs mt-1">Label</p>
+                </div>
+                <div class="bg-[#141414] border border-white/5 rounded-2xl p-6">
+                    <span class="text-zinc-500 text-xs font-medium uppercase tracking-wider block mb-2">Timeline</span>
+                    <div class="text-3xl md:text-4xl font-bold text-indigo-400 tracking-tighter">90 Days</div>
+                    <p class="text-zinc-400 text-xs mt-1">To scale authority</p>
+                </div>
+            </div>
+            <div class="space-y-6 text-sm text-zinc-400">
+                <h3 class="text-white text-lg font-semibold">The Challenge</h3>
+                <p class="leading-relaxed">The client was experiencing a noticeable decay in conventional search volumes, due largely to AI Answer summaries aggregating their core catalog answers inside zero-click blocks.</p>
+                <h3 class="text-white text-lg font-semibold">Our Strategic Execution</h3>
+                <p class="leading-relaxed">We implemented direct semantic layout improvements to map and structure their entire product documentation, ensuring LLM spiders parsed their category as a definitive core concept. We then implemented targeted programmatic entity generation to boost citation signals across generative search spaces.</p>
+            </div>
+            <div class="mt-12 pt-8 border-t border-white/5 flex flex-col sm:flex-row gap-4">
+                <button onclick="toggleModal('casestudy-modal'); toggleModal('booking-modal')" class="btn-accent w-full px-6 py-3 rounded-full font-medium">Replicate This Growth</button>
+                <button onclick="toggleModal('casestudy-modal')" class="btn-primary bg-[#111111] text-white border border-white/10 hover:bg-[#1a1a1a] w-full px-6 py-3 rounded-full font-medium">Back to List</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blog Modal -->
+    <div id="blog-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-[#0A0A0A]/95 backdrop-blur-md" onclick="toggleModal('blog-modal')"></div>
+        <div class="relative w-full max-w-3xl bg-[#111111] border border-white/10 rounded-3xl p-6 md:p-12 shadow-2xl transform transition-transform scale-95 opacity-0 overflow-y-auto max-h-[90vh] modal-content">
+            <button onclick="toggleModal('blog-modal')" class="absolute top-6 right-6 text-zinc-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div class="space-y-4">
+                <span id="blog-tag" class="text-indigo-400 text-xs font-semibold uppercase tracking-wider">Tag</span>
+                <h2 id="blog-title" class="text-3xl md:text-4xl font-bold tracking-tight text-white">Title</h2>
+                <div class="pt-6 space-y-6 text-zinc-300 text-sm leading-relaxed">
+                    <p class="text-lg text-zinc-400 font-light italic">"Traditional search optimization mechanisms are dying. If your pages are only optimized for standard search algorithms, you are missing out on next-generation recommendations."</p>
+                    <p>In this deep dive, we outline the shift toward Answer Engine Optimization (AEO). The primary challenge is formatting raw web content into semantic blocks that LLMs and graph databases can easily index.</p>
+                </div>
+                <div class="pt-10 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div>
+                        <p class="text-xs text-zinc-400 font-medium uppercase tracking-widest mb-1">Learn to dominate search</p>
+                        <h4 class="text-sm font-bold text-white">Schedule your custom semantic analysis today.</h4>
+                    </div>
+                    <button onclick="toggleModal('blog-modal'); toggleModal('booking-modal')" class="btn-accent px-6 py-3 rounded-full font-medium">Book Session</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Research Papers Modal -->
+    <div id="research-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-[#0A0A0A]/95 backdrop-blur-md" onclick="toggleModal('research-modal')"></div>
+        <div class="relative w-full max-w-3xl bg-[#111111] border border-white/10 rounded-3xl p-6 md:p-12 shadow-2xl transform transition-transform scale-95 opacity-0 overflow-y-auto max-h-[90vh] modal-content text-left">
+            <button onclick="toggleModal('research-modal')" class="absolute top-6 right-6 text-zinc-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold uppercase mb-4">
+                <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Whitepaper
+            </span>
+            <h2 class="text-3xl font-extrabold text-white tracking-tight mb-4">Indexing Latency and Search Generative Nodes</h2>
+            <p class="text-sm text-zinc-400 mb-8 leading-relaxed border-b border-white/5 pb-6">A definitive study on semantic density levels, structured markup schemas, and discovery thresholds within the current OpenAI, Anthropic, and Google retrieval pipelines.</p>
+            <button onclick="toggleModal('research-modal'); toggleModal('booking-modal')" class="btn-accent w-full px-6 py-3 rounded-full font-medium">Implement This Architecture</button>
+        </div>
+    </div>
+
+    <!-- Podcast Mini Player -->
+    <div id="podcast-player" class="fixed bottom-6 right-6 z-50 w-full max-w-sm bg-[#141414] border border-white/10 rounded-2xl p-4 shadow-2xl hidden transform translate-y-10 opacity-0 transition-all duration-300">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2 text-xs font-semibold text-zinc-400">
+                <i data-lucide="volume-2" class="w-4 h-4 text-indigo-400"></i><span>Now Streaming</span>
+            </div>
+            <button onclick="togglePodcast()" class="text-zinc-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center text-white"><i data-lucide="play" class="w-5 h-5 fill-white"></i></div>
+            <div class="flex-1 min-w-0">
+                <h4 class="text-sm font-bold text-white truncate">E14: Demystifying LLMs</h4>
+                <p class="text-xs text-zinc-400 truncate">SearchNova Growth Cast</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Init Icons
+        lucide.createIcons();
+
+        // --- Routing / Tab Switching Logic ---
+        let currentTab = 'home';
+        
+        function switchTab(tabId) {
+            // Update Active Nav Styles
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if(link.getAttribute('data-target') === tabId) {
+                    link.className = "nav-link px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white/10 text-white";
+                } else {
+                    link.className = "nav-link px-4 py-2 rounded-full text-sm font-medium transition-colors text-zinc-400 hover:text-white hover:bg-white/5";
+                }
+            });
+            document.querySelectorAll('.nav-link-mobile').forEach(link => {
+                if(link.getAttribute('data-target') === tabId) {
+                    link.classList.add('text-indigo-400'); link.classList.remove('text-zinc-400');
+                } else {
+                    link.classList.remove('text-indigo-400'); link.classList.add('text-zinc-400');
+                }
+            });
+
+            // Toggle Views
+            document.querySelectorAll('.view-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(`view-${tabId}`).classList.add('active');
+            
+            // Scroll & Re-trigger Animations
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (document.getElementById('mobile-menu').classList.contains('flex')) {
+                toggleMobileMenu();
+            }
+            refreshAnimations();
+        }
+
+        // Add event listeners to nav items
+        document.querySelectorAll('.nav-link, .nav-link-mobile').forEach(link => {
+            link.addEventListener('click', (e) => switchTab(e.target.getAttribute('data-target')));
+        });
+
+        // --- Services Dynamic Data ---
+        const servicesData = {
+            'ai': { badge: 'Generative Platform Growth', title: 'AI Search Optimization', desc: 'Structure your SaaS data to be the primary recommendation in LLMs like ChatGPT, Claude, and Perplexity.', points: ['Semantic data structuring', 'Entity relationship building', 'LLM prompt injection strategies', 'Conversational keyword mapping'], metric: '85%', metricDesc: 'Of B2B buyers use AI for initial software research.',
+                faqs: [{ q: "How do LLMs search?", a: "Unlike old index algorithms, LLMs explore deep semantic graphs, weighing citations globally." }, { q: "What does AI Search Optimization change?", a: "We focus on JSON-LD mappings and optimizing programmatic text answers." }] },
+            'geo': { badge: 'Answer Engine Strategy', title: 'GEO & AEO Strategy', desc: 'Formulate structured answers to claim primary quotes and dynamic cards on Google AI Overviews.', points: ['Source reference structuring', 'Answer-format validation', 'Generative-response analysis', 'Query density scoring'], metric: '+210%', metricDesc: 'Average surge in impressions once cited.',
+                faqs: [{ q: "What is AEO?", a: "AEO structures layout content specifically to supply clear solutions to dynamic, voice, and conversational prompt queries." }, { q: "Is the CTR worth it?", a: "Absolutely. Traffic coming directly represents incredibly high purchase-intent buyers." }] },
+            'saas': { badge: 'High Intent Programmatic', title: 'SaaS SEO Growth', desc: 'Accelerate your client acquisition and pipeline volume with technical schemas built to scale programmatic landing pages.', points: ['Entity architecture mapping', 'Interactive calculator SEO', 'Automated template construction', 'Intent-oriented category scaling'], metric: '4x', metricDesc: 'Increase in organic product demo requests.',
+                faqs: [{ q: "What is programmatic entity scaling?", a: "Instantly publishing hundreds of highly integrated pages mapped around core concepts." }, { q: "Will our domain rank be protected?", a: "Yes, our frameworks align cleanly with your site's core structure." }] }
+        };
+
+        function updateServiceData(key) {
+            const data = servicesData[key];
+            // Update styles
+            ['ai', 'geo', 'saas'].forEach(id => {
+                const btn = document.getElementById(`pill-${id}`);
+                btn.className = `flex-1 min-w-[150px] px-6 py-3 rounded-full text-xs md:text-sm font-semibold transition-all cursor-pointer ${id === key ? (key==='ai'?'bg-indigo-600':key==='geo'?'bg-cyan-600':'bg-purple-600') + ' text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`;
+            });
+
+            // Update content with GSAP fade
+            const contentDiv = document.getElementById('service-content');
+            gsap.to(contentDiv, { autoAlpha: 0, y: 10, duration: 0.2, onComplete: () => {
+                document.getElementById('srv-badge').innerText = data.badge;
+                document.getElementById('srv-title').innerText = data.title;
+                document.getElementById('srv-desc').innerText = data.desc;
+                document.getElementById('srv-metric').innerText = data.metric;
+                document.getElementById('srv-metric-desc').innerText = data.metricDesc;
+                
+                const pointsHtml = data.points.map(p => `<li class="flex items-center gap-3 text-zinc-300"><i data-lucide="check-circle-2" class="w-5 h-5 text-indigo-400"></i> ${p}</li>`).join('');
+                document.getElementById('srv-points').innerHTML = pointsHtml;
+                
+                renderFaqs(data.faqs);
+                lucide.createIcons();
+                gsap.to(contentDiv, { autoAlpha: 1, y: 0, duration: 0.3 });
+            }});
+        }
+
+        function renderFaqs(faqs) {
+            const container = document.getElementById('faq-container');
+            container.innerHTML = faqs.map((faq, i) => `
+                <div class="bg-[#111111]/80 border border-white/5 rounded-2xl overflow-hidden transition-colors">
+                    <button onclick="toggleFaq(${i})" class="w-full text-left px-8 py-6 flex items-center justify-between gap-4 text-white hover:text-indigo-400 transition-colors">
+                        <span class="font-semibold text-base md:text-lg">${faq.q}</span>
+                        <i data-lucide="chevron-down" id="faq-icon-${i}" class="w-5 h-5 transition-transform"></i>
+                    </button>
+                    <div id="faq-ans-${i}" class="hidden px-8 pb-6 text-zinc-400 text-sm leading-relaxed border-t border-white/5 pt-4">${faq.a}</div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        let openFaq = -1;
+        function toggleFaq(index) {
+            if(openFaq !== -1 && openFaq !== index) {
+                document.getElementById(`faq-ans-${openFaq}`).classList.add('hidden');
+                document.getElementById(`faq-icon-${openFaq}`).style.transform = 'rotate(0deg)';
+            }
+            const ans = document.getElementById(`faq-ans-${index}`);
+            const icon = document.getElementById(`faq-icon-${index}`);
+            if(ans.classList.contains('hidden')) {
+                ans.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+                openFaq = index;
+            } else {
+                ans.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+                openFaq = -1;
+            }
+        }
+        // Init default service
+        updateServiceData('ai');
+
+        // --- Modals & UI Interactions ---
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            if(menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden'); menu.classList.add('flex');
+            } else {
+                menu.classList.add('hidden'); menu.classList.remove('flex');
+            }
+        }
+
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            const content = modal.querySelector('.modal-content') || modal.querySelector('.modal-content-drawer');
+            
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden'); modal.classList.add('flex');
+                if(id === 'booking-modal') {
+                    document.getElementById('booking-form-area').classList.remove('hidden');
+                    document.getElementById('booking-success').classList.add('hidden');
+                }
+                
+                if (content.classList.contains('modal-content-drawer')) {
+                    gsap.to(content, { duration: 0.4, x: 0, ease: "power3.out" });
+                } else {
+                    gsap.to(content, { duration: 0.4, scale: 1, autoAlpha: 1, ease: "back.out(1.2)" });
+                }
+            } else {
+                if (content.classList.contains('modal-content-drawer')) {
+                    gsap.to(content, { duration: 0.3, x: '100%', ease: "power2.in", onComplete: () => { modal.classList.add('hidden'); modal.classList.remove('flex'); } });
+                } else {
+                    gsap.to(content, { duration: 0.3, scale: 0.95, autoAlpha: 0, ease: "power2.in", onComplete: () => { modal.classList.add('hidden'); modal.classList.remove('flex'); } });
+                }
+            }
+        }
+
+        function openCaseStudy(title, metric, label) {
+            document.getElementById('cs-title').innerText = title + ' Strategy';
+            document.getElementById('cs-metric').innerText = metric;
+            document.getElementById('cs-label').innerText = label;
+            toggleModal('casestudy-modal');
+        }
+
+        function openBlog(title, tag) {
+            document.getElementById('blog-title').innerText = title;
+            document.getElementById('blog-tag').innerText = tag;
+            toggleModal('blog-modal');
+        }
+
+        function togglePodcast() {
+            const player = document.getElementById('podcast-player');
+            if (player.classList.contains('hidden')) {
+                player.classList.remove('hidden');
+                setTimeout(() => { player.classList.remove('translate-y-10', 'opacity-0'); }, 10);
+            } else {
+                player.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => { player.classList.add('hidden'); }, 300);
+            }
+        }
+
+        function handleBookingSubmit(e) {
+            e.preventDefault();
+            document.getElementById('booking-form-area').classList.add('hidden');
+            document.getElementById('booking-success').classList.remove('hidden');
+        }
+
+        // --- GSAP Animations & ScrollTrigger Setup ---
+        let stInstances = [];
+
+        function refreshAnimations() {
+            // Kill old scroll triggers to prevent stacking/errors on hidden elements
+            stInstances.forEach(st => st.kill());
+            stInstances = [];
+
+            // Hero Stagger (Only plays if elements are visible)
+            const activeHeroStagger = document.querySelectorAll('.view-section.active .hero-stagger');
+            if(activeHeroStagger.length > 0) {
+                gsap.fromTo(activeHeroStagger, 
+                    { y: 30, autoAlpha: 0 }, 
+                    { duration: 1, y: 0, autoAlpha: 1, stagger: 0.15, ease: "power3.out", delay: 0.1 }
+                );
+            }
+
+            // Scroll Reveal Items in Active View
+            const activeReveals = document.querySelectorAll('.view-section.active .gsap-reveal');
+            activeReveals.forEach((elem) => {
+                gsap.set(elem, { autoAlpha: 0, y: 40 });
+                const st = ScrollTrigger.create({
+                    trigger: elem,
+                    start: "top 85%",
+                    onEnter: function() {
+                        gsap.to(elem, { duration: 0.8, autoAlpha: 1, y: 0, ease: "power3.out", overwrite: "auto" });
+                    }
+                });
+                stInstances.push(st);
+            });
+            ScrollTrigger.refresh();
+        }
+
+        // Init on load
+        document.addEventListener("DOMContentLoaded", () => {
+            gsap.registerPlugin(ScrollTrigger);
+            refreshAnimations();
+        });
+    </script>
+</body>
+</html>
